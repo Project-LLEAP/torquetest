@@ -1,19 +1,3 @@
-// ESP32 Torque Estimator for Exoskeleton Joint
-// -------------------------------------------
-// * Measures two phase currents via INA240 differential amplifiers and low‑side shunts
-// * Executes Clarke–Park transforms to obtain Iq
-// * Multiplies by motor torque constant, gear ratio and efficiency → joint torque estimate
-// * Sends data over UART every control cycle (10 kHz)
-//
-// Hardware assumed
-//   – ESP32‑S3 or S2 (ADC1 available on GPIO32/33)
-//   – Two 1 mΩ low‑side shunt resistors
-//   – Two INA240A1 (gain = 20 V/V) amps feeding the ADC
-//   – Gate driver + MOSFET bridge driven by MCPWM (not shown)
-//   – Quadrature encoder or Hall sensors to provide rotor electrical angle
-//
-// Build with ESP‑IDF v5.x  ×  “idf.py -p PORT flash monitor”
-
 #include <stdio.h>
 #include <math.h>
 #include "driver/adc.h"
@@ -23,12 +7,13 @@
 
 // ---------------- Motor / Gear parameters ----------------
 #define K_TORQUE      0.231f     // N·m per amp (231 mNm/A)
-#define GEAR_RATIO    50.0f      // output / motor
-#define GEAR_EFF      0.92f      // constant efficiency (planetary)
+#define GEAR_RATIO    100.0f      // output / motor
+// TODO: Measure efficiency
+#define GEAR_EFF      0.85f      // constant efficiency (harmonic)
 
 // ---------------- Sensing chain --------------------------
 #define SHUNT_R       0.001f     // Ω (1 mΩ)
-#define INA_GAIN      20.0f      // INA240 gain
+#define INA_GAIN      50.0f      // INA240 gain
 #define V_REF         3.3f       // ADC reference
 #define ADC_MAX       4095.0f    // 12‑bit ADC
 
@@ -39,8 +24,6 @@
 // Control loop frequencies
 #define PWM_FREQ_HZ       20000
 #define CONTROL_FREQ_HZ   10000   // 10 kHz torque update
-
-static const char *TAG = "torque";
 
 static float offset_a = 0.0f, offset_b = 0.0f;
 
@@ -120,16 +103,3 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Torque estimator running @%d Hz", CONTROL_FREQ_HZ);
 }
-
-//----------------------------------------------------------------
-// Dummy electrical‑angle provider – replace with real encoder code
-//----------------------------------------------------------------
-#include "esp_system.h"
-float get_electrical_angle_rad(void)
-{
-    static float theta = 0.0f;
-    theta += 0.001f;               // placeholder ramp
-    if (theta > 2*M_PI) theta -= 2*M_PI;
-    return theta;
-}
-
